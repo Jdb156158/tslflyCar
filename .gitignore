@@ -1,0 +1,11 @@
+node_modules/
+dist/
+._*
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+
+# WorkBuddy 项目记忆 / 本地数据（含个人笔记，勿入库）
+.workbuddy/

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>特斯拉 Roadster 倒挂坡道 Kickflip 复刻</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121821; --line:#2a3340; --txt:#e6edf3;
+    --muted:#8b949e; --red:#e82127; --green:#3fb950; --accent:#58a6ff; --orange:#ff9d45;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:18px;
+  }
+  h1{font-size:20px;font-weight:600;margin-bottom:4px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px;text-align:center;max-width:780px;line-height:1.6}
+  .wrap{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1090px}
+  .stage{position:relative;background:#000;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.6);border:1px solid var(--line)}
+  canvas{display:block}
+  .hud{position:absolute;bottom:10px;left:12px;display:flex;gap:8px;pointer-events:none}
+  .chip{background:rgba(10,14,20,.75);border:1px solid #2a3340;border-radius:10px;padding:5px 10px;text-align:center;min-width:74px}
+  .chip b{display:block;font-size:15px;color:#79e0ff;font-variant-numeric:tabular-nums}
+  .chip.press b{color:#ffd479}
+  .chip.pitch b{color:#ff9d45}
+  .chip span{font-size:10px;color:#8b949e}
+  .phase{position:absolute;top:10px;right:12px;font-size:12px;color:#ffd479;text-shadow:0 1px 3px #000;pointer-events:none}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;width:300px;display:flex;flex-direction:column;gap:14px}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .ctrl label span{color:var(--txt);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;accent-color:var(--red)}
+  .btns{display:flex;gap:10px}
+  button{flex:1;padding:11px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .08s,filter .15s;color:#fff}
+  button:active{transform:scale(.96)}
+  .play{background:var(--red)}
+  .reset{background:#2a3340}
+  button:hover{filter:brightness(1.12)}
+  .verdict{font-size:14px;font-weight:600;text-align:center;padding:11px;border-radius:10px;min-height:46px;display:flex;align-items:center;justify-content:center;line-height:1.5}
+  .ok{background:rgba(63,185,80,.15);color:#56d364;border:1px solid rgba(63,185,80,.4)}
+  .idle{background:#1b222c;color:var(--muted)}
+  .tip{font-size:12px;color:var(--muted);line-height:1.7;border-top:1px solid var(--line);padding-top:12px}
+  .tag{font-size:11px;color:#ff9bce;margin-top:6px;display:block}
+</style>
+</head>
+<body>
+  <h1>🚀 特斯拉 Roadster「倒挂坡道 + Kickflip」复刻</h1>
+  <div class="sub">按发布会真实几何还原：车从左侧地面加速冲入<b>右侧 C 形环形坡道</b>（与地面相切、平滑切入）→ 沿环右侧爬升、越过顶端<b>倒挂悬停</b>（车头朝前贴在赛道上，约 21 米）→ 冷气推进器托举腾空翻转 → 四轮平稳落地。</div>
+
+  <div class="wrap">
+    <div class="stage">
+      <canvas id="cv" width="760" height="460"></canvas>
+      <div class="hud" id="hud">
+        <div class="chip press"><b id="cPress">0</b><span>下压力 KG</span></div>
+        <div class="chip pitch"><b id="cPitch">0°</b><span>俯仰角</span></div>
+        <div class="chip"><b id="cHm">0 m</b><span id="cHft">0 FT</span></div>
+      </div>
+      <div class="phase" id="phase">待机</div>
+    </div>
+
+    <div class="panel">
+      <div class="ctrl">
+        <label>腾空高度 <span id="hVal">标准</span></label>
+        <input id="h" type="range" min="60" max="140" value="115" step="5">
+      </div>
+      <div class="ctrl">
+        <label>空中翻转 <span id="sVal">180° 复位（半圈）</span></label>
+        <input id="s" type="range" min="0" max="2" value="0" step="1">
+      </div>
+      <div class="ctrl">
+        <label>推进器强度 <span id="tVal">100%</span></label>
+        <input id="t" type="range" min="40" max="140" value="100" step="5">
+      </div>
+
+      <div class="btns">
+        <button class="play" id="play">▶ 播放特技</button>
+        <button class="reset" id="reset">↺ 复位</button>
+      </div>
+
+      <div class="verdict idle" id="verdict">点击「播放特技」开始复刻</div>
+
+      <div class="tip">
+        流程：① 地面加速、切线滑入环形坡道 → ② 沿环右侧爬升，越过顶端倒挂悬停（速度为零，风扇吸附约 2G）→ ③ 冷气推进器喷白色气流、腾空翻转 → ④ 四轮平稳落地。<br>
+        <span class="tag">参数对标视频：倒挂高度约 21 米 / 68.6 FT，俯仰角约 170°，下压力 4699 KG</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const W=cv.width, H=cv.height, GY=410;
+const M_PER_PX = 21/298;               // 倒挂点高度 ≈ 21m
+const el=id=>document.getElementById(id);
+const hEl=el('h'), sEl=el('s'), tEl=el('t');
+function sync(){
+  el('hVal').textContent = hEl.value<90?'低':hEl.value<125?'标准':'超高';
+  const sp=+sEl.value;
+  el('sVal').textContent = sp===0?'180° 复位（半圈）':sp===1?'半圈 + 1 整圈':'半圈 + 2 整圈';
+  el('tVal').textContent = tEl.value+'%';
+}
+[hEl,sEl,tEl].forEach(e=>e.addEventListener('input',sync)); sync();
+
+/* ===== C 形环形坡道（真圆弧，数学上完全平滑）=====
+   圆心 O，赛道半径 RT，车辆中心半径 RC（贴内侧轨道）。
+   弧从正下方 θ=90°（与地面相切，切入无折角）逆时针到 θ=-95°（略过顶，车倒挂）。 */
+const O={x:480,y:258.5}, RT=151.5, RC=140.5;
+const TH1=Math.PI/2, TH2=-95*Math.PI/180;
+const FLAT={x0:120, x1:O.x, y:399};                 // 地面滑行段
+const flatLen=FLAT.x1-FLAT.x0;
+const arcLen=RC*(TH1-TH2);
+const totalLen=flatLen+arcLen;
+const pFlat=flatLen/totalLen;
+// 弧上点 + 车头角（闭合公式：ang = θdeg - 90，全程连续无跳变）
+function posAng(p){
+  if(p<=pFlat){
+    const f=p/pFlat;
+    return {x:FLAT.x0+(FLAT.x1-FLAT.x0)*f, y:FLAT.y, ang:0};
+  }
+  const th=TH1-(p-pFlat)/(1-pFlat)*(TH1-TH2);
+  return {x:O.x+RC*Math.cos(th), y:O.y+RC*Math.sin(th), ang:th*180/Math.PI-90};
+}
+
+const puffs=[];
+let stars=[];
+for(let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*GY*0.8,r:Math.random()*1.4+0.3,a:Math.random()});
+
+let st={phase:'idle',t:0,x:FLAT.x0,y:FLAT.y,ang:0,launch:null,landX:150};
+
+function reset(){
+  st={phase:'idle',t:0,x:FLAT.x0,y:FLAT.y,ang:0,launch:null,landX:150};
+  puffs.length=0;
+  setVerdict('idle','点击「播放特技」开始复刻'); el('phase').textContent='待机';
+}
+reset();
+function play(){ reset(); st.phase='climb'; st.t=0; el('phase').textContent='① 地面冲坡'; setVerdict('idle','表演中…'); }
+function setVerdict(c,t){ const v=el('verdict'); v.className='verdict '+c; v.textContent=t; }
+
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
+const easeOutCubic=t=>1-Math.pow(1-t,3);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+function spawnPuff(x,y,n=2,rBase=3,rJit=5,vyB=0.5,vyJ=1.6){
+  for(let i=0;i<n;i++) puffs.push({x:x+(Math.random()*10-5),y:y+(Math.random()*6-3),vx:(Math.random()*1.4-0.7),vy:Math.random()*vyJ+vyB,r:Math.random()*rJit+rBase,life:1});
+}
+function puffAtLocalBottom(angRad,dist,n=2,rBase=3,rJit=5,vyB=0.5,vyJ=1.6){
+  spawnPuff(st.x-Math.sin(angRad)*dist, st.y+Math.cos(angRad)*dist, n, rBase, rJit, vyB, vyJ);
+}
+
+let last=performance.now();
+function frame(now){
+  const dt=Math.min((now-last)/1000,0.033); last=now;
+  update(dt); draw(); requestAnimationFrame(frame);
+}
+
+function update(dt){
+  if(st.phase==='climb'){
+    st.t+=dt/3.4;
+    const p=Math.min(smooth(st.t),1);
+    const s=posAng(p);
+    st.x=s.x; st.y=s.y; st.ang=s.ang;
+    if(Math.random()<0.5) puffAtLocalBottom(st.ang*Math.PI/180,15);
+    if(p>=1){ st.phase='hang'; st.t=0; el('phase').textContent='② 倒挂悬停'; }
+  }
+  else if(st.phase==='hang'){
+    st.t+=dt;
+    puffAtLocalBottom(st.ang*Math.PI/180,16,2,2,3,1.3,2.4);   // 车底风扇吸附气流：密集细缕 + 快速向下飘离，明显但不糊车
+    if(st.t>=1.2){
+      st.phase='flight'; st.t=0;
+      st.launch={x:st.x,y:st.y,ang:st.ang};
+      st.landX=clamp(680-(+hEl.value-115)*0.6,600,720);   // 落在坡道右侧开阔地：顺着来时方向（左→右）腾空翻越，彻底消除"原路退回"
+      puffAtLocalBottom(st.ang*Math.PI/180,18,12,4,9,1.5,2.5);   // 冷气推进器点火爆发
+      el('phase').textContent='③ 腾空翻转';
+    }
+  }
+  else if(st.phase==='flight'){
+    st.t+=dt/2.2;
+    const p=Math.min(st.t,1);
+    const peak=+hEl.value, thr=+tEl.value/100, extra=+sEl.value;
+    const L=st.launch;
+    const vy0=clamp(-(70+peak)*(0.78+0.32*thr),-235,-140);  // 设最小弧顶下限，避免"直直掉回"
+    const T=2.3, dy=(GY-11)-L.y;
+    const g=2*(dy-vy0*T)/(T*T);
+    st.x=lerp(L.x,st.landX,p);                          // 水平匀速近距漂移（起飞方向距垂直仅~19°，读作"垂直上冲"）
+    st.y=L.y+vy0*(p*T)+0.5*g*(p*T)*(p*T);
+    st.ang=L.ang-(175+360*extra)*p;                    // 顺势继续翻转，-360° 处回正
+    if(Math.random()<0.9*thr+0.1) puffAtLocalBottom(st.ang*Math.PI/180,22);
+    if(p>=1){ st.phase='land'; st.t=0; el('phase').textContent='④ 安全落地'; }
+  }
+  else if(st.phase==='land'){
+    st.t+=dt;
+    if(Math.random()<0.6) spawnPuff(st.x-14,st.y+8,1);
+    if(st.t>=0.45){
+      st.phase='done';
+      const norm=((st.ang%360)+360)%360;
+      if(Math.min(norm,360-norm)<22) setVerdict('ok','✅ 四轮平稳落地！Kickflip 复刻成功');
+      else setVerdict('idle','落地角度偏移（'+Math.round(norm)+'°），调一下翻转参数再试');
+    }
+  }
+  for(let i=puffs.length-1;i>=0;i--){const p=puffs[i];p.x+=p.vx;p.y+=p.vy;p.r+=0.5;p.life-=dt*1.4;if(p.life<=0)puffs.splice(i,1);}
+}
+
+function draw(){
+  // 夜空
+  const sky=ctx.createLinearGradient(0,0,0,GY);
+  sky.addColorStop(0,'#05080f'); sky.addColorStop(1,'#0e1b30');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,GY);
+  stars.forEach(s=>{ctx.fillStyle='rgba(255,255,255,'+s.a+')';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,7);ctx.fill();});
+  // 聚光
+  ctx.save();ctx.globalCompositeOperation='lighter';
+  [560,280].forEach(x=>{
+    const g=ctx.createRadialGradient(x,40,10,x,40,360);
+    g.addColorStop(0,'rgba(120,170,255,.15)');g.addColorStop(1,'rgba(120,170,255,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x,40);ctx.lineTo(x-150,GY);ctx.lineTo(x+150,GY);ctx.closePath();ctx.fill();
+  });
+  ctx.restore();
+  // 地面
+  ctx.fillStyle='#0c1118'; ctx.fillRect(0,GY,W,H-GY);
+  ctx.strokeStyle='#243042'; ctx.lineWidth=2; ctx.beginPath();ctx.moveTo(0,GY);ctx.lineTo(W,GY);ctx.stroke();
+  ctx.strokeStyle='#2f3c4f';ctx.setLineDash([16,12]);ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(0,GY+30);ctx.lineTo(W,GY+30);ctx.stroke();ctx.setLineDash([]);
+
+  drawRamp();
+  drawMeasure();
+
+  puffs.forEach(p=>{ctx.fillStyle='rgba(220,235,255,'+(p.life*0.5)+')';ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();});
+
+  // 地面投影
+  const hgt=GY-st.y;
+  ctx.fillStyle='rgba(0,0,0,'+clamp(0.45-hgt/900,0.08,0.45)+')';
+  ctx.beginPath();ctx.ellipse(st.x,GY+5,clamp(34-hgt*0.04,12,34),6,0,0,7);ctx.fill();
+
+  drawCar(st.x,st.y,st.ang*Math.PI/180);
+
+  // 阶段字幕（让 ①→④ 每一步在画布上明确标注，腾空翻转/落地不可能错过）
+  ctx.textAlign='center';
+  const capX=clamp(st.x,90,W-90);
+  if(st.phase==='climb'){
+    ctx.fillStyle='#9fd0ff'; ctx.font='600 15px -apple-system,PingFang SC,sans-serif';
+    ctx.fillText('① 地面加速 · 切线滑入环形坡道', 300, 38);
+  }else if(st.phase==='hang'){
+    ctx.fillStyle='#ffd479'; ctx.font='600 16px -apple-system,PingFang SC,sans-serif';
+    ctx.fillText('车倒挂着，速度为零', 600, 66);
+  }else if(st.phase==='flight'){
+    ctx.fillStyle='#ff9d45'; ctx.font='600 16px -apple-system,PingFang SC,sans-serif';
+    ctx.fillText('③ 冷气推进器 · 腾空翻转', capX, Math.max(40, st.y-42));
+  }else if(st.phase==='land'){
+    ctx.fillStyle='#56d364'; ctx.font='600 16px -apple-system,PingFang SC,sans-serif';
+    ctx.fillText('④ 四轮平稳落地', capX, Math.max(40, st.y-42));
+  }
+  ctx.textAlign='left';
+
+  // HUD 数据
+  const norm=((st.ang%360)+360)%360;
+  el('cPitch').textContent=Math.round(norm)+'°';
+  const hm=Math.max(0,(GY-st.y))*M_PER_PX;
+  el('cHm').textContent=hm.toFixed(1)+' m';
+  el('cHft').textContent='高度 '+(hm*3.281).toFixed(1)+' FT';
+  // 下压力：爬坡随环道渐增（地面 1855 基准 → 环顶 4699），悬停 4699，腾空推进器 1200 递减；待机/落地后为 0
+  let press=0;
+  if(st.phase==='climb'){
+    const cp=Math.min(smooth(st.t),1);
+    press = cp<=pFlat ? 1855 : Math.round(1855+(4699-1855)*((cp-pFlat)/(1-pFlat)));
+  }else if(st.phase==='hang'){
+    press=4699;
+  }else if(st.phase==='flight'){
+    press=Math.round(1200*(1-Math.min(st.t,1)));
+  }
+  el('cPress').textContent=press;
+}
+
+function drawRamp(){
+  // 结构支架（径向刻度，沿弧长每 ~26px 一根）
+  ctx.strokeStyle='#232c38'; ctx.lineWidth=2;
+  const step=26/RT;
+  for(let a=TH1;a>=TH2;a-=step){
+    const c=Math.cos(a), s=Math.sin(a);
+    ctx.beginPath();
+    ctx.moveTo(O.x+(RT+9)*c, O.y+(RT+9)*s);
+    ctx.lineTo(O.x+(RT+25)*c, O.y+(RT+25)*s);
+    ctx.stroke();
+  }
+  // 主体钢架（真圆弧，完全平滑）
+  ctx.strokeStyle='#39424f'; ctx.lineWidth=15; ctx.lineCap='round';
+  ctx.beginPath(); ctx.arc(O.x,O.y,RT,TH1,TH2,true); ctx.stroke();
+  // 橙色发光赛道线
+  ctx.save(); ctx.shadowBlur=10; ctx.shadowColor='rgba(255,157,69,.8)';
+  ctx.strokeStyle='#ff9d45'; ctx.lineWidth=3.5;
+  ctx.beginPath(); ctx.arc(O.x,O.y,RT,TH1,TH2,true); ctx.stroke();
+  ctx.restore();
+}
+
+function drawMeasure(){
+  const topY=O.y-RT, x=712;
+  ctx.strokeStyle='#3a4656'; ctx.setLineDash([4,4]); ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x,GY);ctx.lineTo(x,topY);ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x-6,GY);ctx.lineTo(x+6,GY);ctx.moveTo(x-6,topY);ctx.lineTo(x+6,topY);ctx.stroke();
+  ctx.fillStyle='#cfe8ff'; ctx.font='600 13px -apple-system,PingFang SC,sans-serif'; ctx.textAlign='center';
+  ctx.fillText('约 21 米',x,250);
+  ctx.fillStyle='#8b949e'; ctx.font='11px -apple-system,sans-serif';
+  ctx.fillText('68.6 FT',x,266);
+  ctx.textAlign='left';
+}
+
+/* 低趴双座跑车（+x 为车头），贴合 Roadster 比例 */
+function drawCar(cx,cy,ang){
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+  // 车身
+  ctx.fillStyle='#f2f4f7';
+  ctx.beginPath();
+  ctx.moveTo(-37,-2);
+  ctx.lineTo(-37,-9);
+  ctx.quadraticCurveTo(-35,-14,-25,-15);          // 尾部鸭尾
+  ctx.quadraticCurveTo(-16,-24,-4,-25);           // 座舱顶（偏后）
+  ctx.quadraticCurveTo(6,-25,15,-16);             // 前风挡溜背
+  ctx.quadraticCurveTo(28,-12,35,-7);             // 长车头
+  ctx.quadraticCurveTo(37,-5,37,-2);
+  ctx.lineTo(37,0);
+  ctx.lineTo(-37,0);
+  ctx.closePath(); ctx.fill();
+  // 座舱玻璃
+  ctx.fillStyle='#0d1117';
+  ctx.beginPath();
+  ctx.moveTo(-19,-15);
+  ctx.quadraticCurveTo(-12,-22,-3,-23);
+  ctx.quadraticCurveTo(5,-22,11,-16);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#a9d4ff';
+  ctx.beginPath();
+  ctx.moveTo(-15,-16);
+  ctx.quadraticCurveTo(-10,-20.5,-3,-21);
+  ctx.quadraticCurveTo(2,-20.5,6,-16.5);
+  ctx.closePath(); ctx.fill();
+  // 侧裙腰线
+  ctx.strokeStyle='#c9ced6'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(-30,-6); ctx.lineTo(30,-5); ctx.stroke();
+  // 侧进气口
+  ctx.fillStyle='#23282e';
+  ctx.beginPath(); ctx.moveTo(-26,-13); ctx.lineTo(-16,-13); ctx.lineTo(-19,-9); ctx.lineTo(-27,-9); ctx.closePath(); ctx.fill();
+  // 车头灯 / 尾灯（取消红十字式 T 标）
+  ctx.fillStyle='#ffe9a8'; ctx.fillRect(31,-9,5,3);
+  ctx.fillStyle='#ff5b60'; ctx.fillRect(-36.5,-12,2.5,5);
+  // 轮
+  ctx.fillStyle='#111';
+  wheel(-23,3,8.5); wheel(23,3,8.5);
+  ctx.restore();
+}
+function wheel(x,y,r){ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.fillStyle='#3a3f45';ctx.beginPath();ctx.arc(x,y,r*0.45,0,7);ctx.fill();ctx.fillStyle='#111';}
+
+el('play').onclick=play;
+el('reset').onclick=reset;
+if(location.hash.includes('auto')){          // 供自动化截图/测试：#auto:秒数 同步快进
+  play();
+  const m=location.hash.match(/([\d.]+)/);
+  if(m){ const target=Math.min(+m[1],8); for(let i=0,n=Math.round(target*60);i<n;i++) update(1/60); }
+}else{
+  play();                                     // 正常打开页面即自动播放，避免"没点播放/没刷新到新版"看不到动画
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
