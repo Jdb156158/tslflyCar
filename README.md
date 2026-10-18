@@ -27,6 +27,12 @@
 ### 在线预览
 - 特斯拉翻转模拟：<https://jdb156158.github.io/tslflyCar/tesla-flip-sim.html>
 
+### 预览图
+
+| ② 倒挂悬停（下压力 4699 KG · 俯仰 175°） | ③ 冷气推进器 · 腾空翻转 |
+|:---:|:---:|
+| ![倒挂悬停](preview-tesla-hang.png) | ![腾空翻转](preview-tesla-flight.png) |
+
 ---
 
 ## ② VOLT 赛车 · 街道赛 · `index.html`
@@ -43,6 +49,9 @@
 
 ### 在线预览
 - VOLT 赛车：<https://jdb156158.github.io/tslflyCar/>
+
+### 预览图
+![VOLT 赛车 · 街道赛](preview-volt.png)
 
 ---
 
